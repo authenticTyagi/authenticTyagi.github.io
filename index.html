@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome | Abhishek Tyagi (authenticTyagi)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background: black; }
+        canvas { display: block; }
+        #site-link {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #FF0000;
+            font-family: monospace;
+            font-size: 20px;
+            text-decoration: none;
+            text-shadow: 0 0 6px #FF0000, 0 0 12px #FF0000, 0 0 18px #FF0000;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+        #site-link.glow { opacity: 1; }
+    </style>
+</head>
+<body>
+    <canvas id="matrix"></canvas>
+    <a id="site-link" href="https://www.linkedin.com/in/authentictyagi/">Under Construction - HREF to LinkedIn currently</a>
+    <script>
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        const siteLink = document.getElementById('site-link');
+
+        // Sound placeholders (replace with your .mp3 or .wav files)
+        const soundBlast = new Audio('wordBoom.mp3'); // Digital burst
+        const soundLink = new Audio('enterSite.wav'); // Notification chime
+
+        // Set volumes
+        soundBlast.volume = 0.7;
+        soundLink.volume = 0.6;
+
+        // Set canvas size to window size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Character set (Devanagari letters and numerals)
+        const chars = 'अआइईउऊऋएऐओऔकखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसहक्षत्रज्ञ०१२३४५६७८९';
+        const fontSize = 16; // For random rain
+        const nameFontSize = 24; // For dropping and formed letters
+        const blinkFontSize = 32; // For blinking letters
+        let columns = Math.floor(canvas.width / fontSize);
+        let drops = Array(columns).fill(0); // Tracks y-position of each column
+        const name = 'Abhishek Tyagi'; // Name in Latin
+        let nameStartX = Math.floor((columns - name.length) / 2); // Final center for name
+        const centerY = Math.floor(canvas.height / 2 / fontSize); // Center vertically
+        const charArray = chars.split('');
+        let state = 'cascading'; // States: 'cascading', 'forming', 'paused', 'blasting', 'resuming'
+        let formStartTime = null;
+        let blastStartTime = null;
+        let letterIndex = 0; // Tracks which letter to spawn next
+        let lastLetterTime = Date.now();
+        let blastTriggered = false; // Prevents multiple triggers
+
+        // Initialize name letters in random columns
+        const letterColumns = [];
+        const usedColumns = new Set();
+        while (letterColumns.length < name.length) {
+            const col = Math.floor(Math.random() * columns);
+            if (!usedColumns.has(col)) {
+                letterColumns.push(col);
+                usedColumns.add(col);
+            }
+        }
+        const letterData = name.split('').map((char, i) => ({
+            char,
+            startCol: letterColumns[i],
+            currentCol: letterColumns[i],
+            targetCol: nameStartX + i,
+            y: -1, // -1 means not spawned yet
+            formingProgress: 0, // For horizontal animation
+            blastXVel: (i < name.length / 2 ? -1.5 : 1.5) * (1 + Math.random()), // Increased velocity
+            blastYVel: (Math.random() - 0.5) * 1, // More vertical variation
+            blastOpacity: 1, // Fade during blast
+            rotation: (Math.random() - 0.5) * 0.5, // Slight rotation for chaos
+            blinkTimer: Math.random() * Math.PI * 2 // Independent blinking phase
+        }));
+
+        // Event listeners for user input
+        function triggerBlast() {
+            if (state === 'paused' && !blastTriggered) {
+                blastTriggered = true;
+                state = 'blasting';
+                blastStartTime = Date.now();
+                // Play blast sound
+                const sound = new Audio(soundBlast.src);
+                sound.volume = soundBlast.volume;
+                sound.play();
+                // Remove listeners to prevent re-triggering
+                document.removeEventListener('click', triggerBlast);
+                document.removeEventListener('touchstart', triggerBlast);
+                document.removeEventListener('keydown', triggerBlast);
+            }
+        }
+        document.addEventListener('click', triggerBlast);
+        document.addEventListener('touchstart', triggerBlast);
+        document.addEventListener('keydown', triggerBlast);
+
+        function draw() {
+            // Semi-transparent black for fade effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#00CC00'; // Rain green
+
+            if (state === 'cascading') {
+                // Spawn letters one by one
+                if (letterIndex < name.length && Date.now() - lastLetterTime >= 500) {
+                    letterData[letterIndex].y = 0; // Spawn at top
+                    letterIndex++;
+                    lastLetterTime = Date.now();
+                }
+
+                // Draw rain and name letters
+                for (let i = 0; i < columns; i++) {
+                    const yPos = drops[i];
+                    const letter = letterData.find(ld => ld.startCol === i && ld.y >= 0 && ld.y <= centerY);
+                    let char;
+
+                    if (letter) {
+                        // Draw name letter, blinking if at center
+                        ctx.font = letter.y >= centerY ? `${blinkFontSize}px monospace` : `${nameFontSize}px monospace`;
+                        if (letter.y >= centerY) {
+                            // Blink in white (opacity 1 to 0)
+                            letter.blinkTimer += 0.033; // Update per frame
+                            const opacity = Math.sin(letter.blinkTimer * Math.PI * 2) > 0 ? 1 : 0;
+                            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                        } else {
+                            ctx.fillStyle = '#0F0';
+                            letter.y += 1.5; // Faster fall to match rain
+                        }
+                        ctx.fillText(letter.char, i * fontSize, letter.y * fontSize);
+                        ctx.fillStyle = '#00CC00';
+                    } else {
+                        // Draw random rain
+                        char = charArray[Math.floor(Math.random() * charArray.length)];
+                        ctx.font = `${fontSize}px 'Noto Serif Devanagari', sans-serif`;
+                        ctx.fillText(char, i * fontSize, yPos * fontSize);
+                        drops[i] += 1.5; // Faster rain
+                        if (yPos * fontSize > canvas.height && Math.random() > 0.975) {
+                            drops[i] = 0;
+                        }
+                    }
+                }
+
+                // Check if all letters reached center
+                if (letterData.every(ld => ld.y >= centerY)) {
+                    state = 'forming';
+                    formStartTime = Date.now();
+                    letterData.forEach(ld => ld.y = centerY); // Snap to center
+                    // Clear rain drops to pause rain
+                    drops.fill(0);
+                }
+            } else if (state === 'forming') {
+                // Animate letters to final positions
+                const formDuration = 1000; // 1 second to form
+                const elapsed = Date.now() - formStartTime;
+                const progress = Math.min(elapsed / formDuration, 1);
+
+                for (let i = 0; i < columns; i++) {
+                    const letter = letterData.find(ld => ld.startCol === i || ld.currentCol === i);
+                    if (letter && letter.y === centerY) {
+                        // Update letter's x-position
+                        letter.formingProgress = progress;
+                        letter.currentCol = letter.startCol + (letter.targetCol - letter.startCol) * progress;
+                        ctx.font = `${nameFontSize}px monospace`; // Revert to original size
+                        ctx.fillStyle = '#0F0';
+                        ctx.fillText(letter.char, letter.currentCol * fontSize, centerY * fontSize);
+                    }
+                }
+
+                // Check if forming is complete
+                if (progress >= 1) {
+                    state = 'paused';
+                    letterData.forEach(ld => ld.currentCol = ld.targetCol); // Snap to final positions
+                }
+            } else if (state === 'paused') {
+                // Draw name in final position, no rain
+                for (let i = 0; i < columns; i++) {
+                    const letter = letterData.find(ld => Math.round(ld.currentCol) === i);
+                    if (letter) {
+                        ctx.font = `${nameFontSize}px monospace`;
+                        ctx.fillStyle = '#0F0';
+                        ctx.fillText(letter.char, i * fontSize, centerY * fontSize);
+                    }
+                }
+            } else if (state === 'blasting') {
+                // Animate letters scattering outward
+                const blastDuration = 1500; // 1.5 seconds for bigger blast
+                const elapsed = Date.now() - blastStartTime;
+                const progress = Math.min(elapsed / blastDuration, 1);
+
+                for (let i = 0; i < columns; i++) {
+                    const letter = letterData.find(ld => Math.round(ld.currentCol) === i && ld.blastOpacity > 0);
+                    if (letter) {
+                        // Update letter's position, opacity, and rotation
+                        letter.currentCol += letter.blastXVel * 0.75;
+                        letter.y += letter.blastYVel * 0.75;
+                        letter.blastOpacity = 1 - progress;
+                        ctx.save();
+                        ctx.translate(letter.currentCol * fontSize + fontSize / 2, letter.y * fontSize + fontSize / 2);
+                        ctx.rotate(letter.rotation * progress);
+                        ctx.font = `${nameFontSize}px monospace`;
+                        ctx.fillStyle = `rgba(0, 255, 0, ${letter.blastOpacity})`;
+                        ctx.fillText(letter.char, -fontSize / 2, -fontSize / 2);
+                        ctx.restore();
+                    }
+                }
+
+                // Check if blasting is complete
+                if (progress >= 1) {
+                    state = 'resuming';
+                    letterData.forEach(ld => ld.blastOpacity = 0); // Hide blasted letters
+                    // Show link after 3 seconds
+                    setTimeout(() => {
+                        siteLink.classList.add('glow');
+                        const sound = new Audio(soundLink.src);
+                        sound.volume = soundLink.volume;
+                        sound.play();
+                    }, 3000);
+                }
+            } else if (state === 'resuming') {
+                // Resume random rain
+                for (let i = 0; i < columns; i++) {
+                    const yPos = drops[i];
+                    const char = charArray[Math.floor(Math.random() * charArray.length)];
+                    ctx.font = `${fontSize}px 'Noto Serif Devanagari', sans-serif`;
+                    ctx.fillText(char, i * fontSize, yPos * fontSize);
+                    drops[i] += 1.5; // Faster rain
+                    if (yPos * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                }
+            }
+        }
+
+        // Animation loop (30 FPS)
+        setInterval(draw, 33);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const newColumns = Math.floor(canvas.width / fontSize);
+            if (newColumns > columns) {
+                drops.push(...Array(newColumns - columns).fill(0));
+            } else {
+                drops.splice(newColumns);
+            }
+            columns = newColumns;
+            nameStartX = Math.floor((columns - name.length) / 2); // Recenter name
+            letterData.forEach((ld, i) => {
+                ld.targetCol = nameStartX + i;
+                if (state === 'paused' || state === 'blasting' || state === 'resuming') {
+                    ld.currentCol = ld.targetCol;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
