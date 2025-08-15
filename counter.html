@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Page Counter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <h3>Page Visit Counter</h3>
+  <div id="countDisplay">Loading...</div>
+
+  <script>
+    // Use localStorage for simplicity (per browser count)
+    let count = localStorage.getItem('iframe_page_view_count');
+    count = count ? parseInt(count) + 1 : 1;
+    localStorage.setItem('iframe_page_view_count', count);
+
+    document.getElementById('countDisplay').innerText = `Visits: ${count}`;
+  </script>
+</body>
+</html>
